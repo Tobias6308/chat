@@ -2,6 +2,12 @@
 
 WebChat 是一个功能完整的即时通讯（IM）系统，提供实时聊天、好友管理、群组交流等功能。
 
+## 首页预览
+
+![WebChat 首页](docs/images/homepage.png)
+
+> 📝 **提示**: 截图放置于 `docs/images/homepage.png`
+
 ## 技术栈
 
 ### 后端 (chat-server)

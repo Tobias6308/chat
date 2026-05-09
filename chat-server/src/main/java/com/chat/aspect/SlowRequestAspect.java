@@ -5,9 +5,11 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -21,15 +23,21 @@ public class SlowRequestAspect {
 
     private static final Logger logger = LoggerFactory.getLogger(SlowRequestAspect.class);
 
-    @Value("${logging.file.name:}")
-    private String logBasePath;
-
-    private static final long SLOW_THRESHOLD_MS = 1000;
+    private static final long SLOW_THRESHOLD_MS = 100;
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     @Around("execution(* com.chat.controller..*.*(..))")
     public Object logSlowRequest(ProceedingJoinPoint joinPoint) throws Throwable {
         long startTime = System.currentTimeMillis();
+
+        HttpServletRequest request = null;
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null) {
+            request = attributes.getRequest();
+        }
+
+        String userId = getUserId(request);
+        String clientIp = getClientIp(request);
 
         try {
             return joinPoint.proceed();
@@ -44,6 +52,8 @@ public class SlowRequestAspect {
                 sb.append("[").append(DATE_FORMAT.format(new Date())).append("] ");
                 sb.append("[SLOW] ").append(method).append(" ");
                 sb.append("duration=").append(duration).append("ms ");
+                sb.append("ip=").append(clientIp).append(" ");
+                sb.append("userId=").append(userId).append(" ");
 
                 if (args != null && args.length > 0) {
                     sb.append("params=");
@@ -58,6 +68,24 @@ public class SlowRequestAspect {
                 writeToSlowLogFile(logMessage);
             }
         }
+    }
+
+    private String getUserId(HttpServletRequest request) {
+        if (request == null) return "N/A";
+        Object userId = request.getAttribute("userId");
+        return userId != null ? String.valueOf(userId) : "anonymous";
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        if (request == null) return "N/A";
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        return ip;
     }
 
     private void writeToSlowLogFile(String message) {
