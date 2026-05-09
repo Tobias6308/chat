@@ -71,13 +71,15 @@ async function ensureUserInfo(): Promise<void> {
 // 会话列表加载标志
 let conversationListLoaded = false;
 
+// 会话列表加载状态
+const conversationLoading = computed(() => conversationStore.isLoading);
+
 onMounted(async () => {
   // 加载用户信息 (带懒加载检查)
   await ensureUserInfo();
 
   // 仅首次访问时加载会话
   if (!conversationListLoaded) {
-    await conversationStore.loadFromCache();
     conversationStore.loadFromApi();
     conversationListLoaded = true;
   }
@@ -343,32 +345,28 @@ function goToGroupManage(): void {
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
-        <!-- Left: Title + Count -->
-        <div class="flex items-center gap-2">
+        <!-- Left: Title -->
+        <div class="flex items-center">
           <h1 class="text-lg font-semibold text-gray-800">消息</h1>
-          <span v-if="conversationStore.totalCount > 0" class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-            {{ conversationStore.conversations.length }}/{{ conversationStore.totalCount }}
-          </span>
         </div>
         
         <!-- Right: Actions -->
         <div class="flex items-center gap-1">
-          <!-- Connection status -->
-          <div class="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-100">
+          <!-- Connection status (dot only) -->
+          <div class="flex items-center" :title="connectionStatusText">
             <span
               class="w-2 h-2 rounded-full"
               :class="connectionStatusColor"
             ></span>
-            <span class="text-xs text-gray-500">{{ connectionStatusText }}</span>
           </div>
 
           <!-- Friends button -->
           <button
-            class="relative p-2 hover:bg-gray-100 rounded-lg"
+            class="relative p-1.5 hover:bg-gray-100 rounded-lg"
             title="好友管理"
             @click="router.push('/friends')"
           >
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a4 4 0 11-8 0 4 4 0 018 0zM17 20a4 4 0 01-8 0"></path>
             </svg>
             <!-- Badge for pending requests -->
@@ -382,11 +380,11 @@ function goToGroupManage(): void {
 
           <!-- Groups button -->
           <button
-            class="relative p-2 hover:bg-gray-100 rounded-lg"
+            class="relative p-1.5 hover:bg-gray-100 rounded-lg"
             title="群聊管理"
             @click="router.push('/groups')"
           >
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
             </svg>
             <!-- Badge for pending join requests -->
@@ -398,32 +396,32 @@ function goToGroupManage(): void {
             </span>
           </button>
 
-          <!-- Profile button with user info -->
+          <!-- Profile button -->
           <button
-            class="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-lg"
+            class="flex items-center gap-1 p-1.5 hover:bg-gray-100 rounded-lg"
             title="个人设置"
             @click="router.push('/profile')"
           >
             <img
               v-if="userInfo?.avatar"
               :src="userInfo.avatar"
-              class="w-7 h-7 rounded-full"
+              class="w-5 h-5 rounded-full"
               :alt="userInfo.nickname"
             />
             <div
               v-else
-              class="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-sm font-medium"
+              class="w-5 h-5 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xs font-medium"
             >
               {{ (userInfo?.nickname || userInfo?.username || '?').charAt(0).toUpperCase() }}
             </div>
-            <span class="text-sm text-gray-700">{{ userInfo?.nickname || userInfo?.username }}</span>
+            <span class="text-xs text-gray-700">{{ userInfo?.nickname || userInfo?.username }}</span>
           </button>
         </div>
       </div>
 
       <!-- Search -->
-      <div class="px-3 py-2">
-        <div class="relative">
+      <div class="px-3 py-2 flex items-center gap-2">
+        <div class="relative flex-1">
           <input
             v-model="searchQuery"
             type="text"
@@ -444,20 +442,68 @@ function goToGroupManage(): void {
             ></path>
           </svg>
         </div>
+        <div class="flex items-center gap-2">
+          <!-- Session count -->
+          <span v-if="conversationStore.totalCount > 0" class="text-xs text-gray-400">
+            {{ conversationStore.conversations.length }}/{{ conversationStore.totalCount }}
+          </span>
+          <!-- Refresh button -->
+          <button
+            class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+            title="刷新会话"
+            :disabled="conversationLoading"
+            @click="conversationStore.loadFromApi()"
+          >
+            <svg
+              class="w-4 h-4"
+              :class="{ 'animate-spin text-primary-500': conversationLoading, 'text-gray-500': !conversationLoading }"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- Conversation List -->
       <div class="flex-1 overflow-y-auto">
+        <!-- Loading state -->
         <div
-          v-for="conversation in filteredConversations"
-          :key="conversation.id"
-          class="flex items-center px-3 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
-          :class="{
-            'bg-gray-100': conversationStore.activeConversationId === conversation.id,
-            'bg-yellow-50': conversation.pinned
-          }"
-          @click="handleSelectConversation(conversation.id)"
+          v-if="conversationLoading && filteredConversations.length === 0"
+          class="flex flex-col items-center justify-center py-12 text-gray-400"
         >
+          <svg class="animate-spin h-8 w-8 mb-3" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <span class="text-sm">加载中...</span>
+        </div>
+
+        <!-- Empty state -->
+        <div
+          v-else-if="!conversationLoading && filteredConversations.length === 0"
+          class="flex flex-col items-center justify-center py-12 text-gray-400"
+        >
+          <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+          </svg>
+          <span class="text-sm">暂无会话</span>
+        </div>
+
+        <!-- Conversation items -->
+        <template v-else>
+          <div
+            v-for="conversation in filteredConversations"
+            :key="conversation.id"
+            class="flex items-center px-3 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+            :class="{
+              'bg-gray-100': conversationStore.activeConversationId === conversation.id,
+              'bg-yellow-50': conversation.pinned
+            }"
+            @click="handleSelectConversation(conversation.id)"
+          >
           <!-- Avatar -->
           <img
             v-if="getFriendInfo(conversation).avatar"
@@ -543,17 +589,7 @@ function goToGroupManage(): void {
             </div>
           </div>
         </div>
-
-        <!-- Empty state -->
-        <div
-          v-if="filteredConversations.length === 0"
-          class="flex flex-col items-center justify-center py-12 text-gray-400"
-        >
-          <svg class="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-          </svg>
-          <p class="text-sm">暂无会话</p>
-        </div>
+        </template>
       </div>
     </aside>
 

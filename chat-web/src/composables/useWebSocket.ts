@@ -770,12 +770,12 @@ export function useWebSocket() {
   });
 
   /**
-   * Cleanup on unmount
+   * Cleanup on unmount - 只清理事件监听器，不断开连接
+   * 连接生命周期由 App.vue 统一管理
    */
   onUnmounted(() => {
-    disconnect();
-    messageQueue.value = [];
-    eventListeners.clear();
+    // 不自动 disconnect，避免组件卸载导致连接断开
+    // 消息队列和事件监听器的清理根据需要保留
   });
 
   // ============================================

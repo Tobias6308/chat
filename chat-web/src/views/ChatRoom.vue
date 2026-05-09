@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue';
+import { onMounted, watch, computed } from 'vue';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useMessageStore } from '@/stores/message';
 import { useConversationStore } from '@/stores/conversation';
@@ -10,7 +10,7 @@ const ws = useWebSocket();
 const messageStore = useMessageStore();
 const conversationStore = useConversationStore();
 
-// Get connection status
+// Get connection status - use computed to ensure reactivity
 const wsStatus = computed(() => ws.status.value);
 
 watch(wsStatus, (newVal) => {

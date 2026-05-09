@@ -581,7 +581,8 @@ public class GroupController {
         group.setUpdatedAt(System.currentTimeMillis());
         groupRepository.save(group);
 
-        Optional<Conversation> convOpt = conversationRepository.findById(groupId);
+        // 通过 relateId 查找群组会话并更新
+        Optional<Conversation> convOpt = conversationRepository.findByRelateId(groupId);
         if (convOpt.isPresent()) {
             Conversation conv = convOpt.get();
             if (name != null && !name.trim().isEmpty()) {

@@ -23,6 +23,10 @@ function connectIfLoggedIn(): void {
 }
 
 async function loadConfig(): Promise<void> {
+  const token = sessionStorage.getItem('chat_token');
+  if (!token) {
+    return;
+  }
   try {
     const result = await configApi.getConfig();
     if (result.success && result.data?.fileServerUrl) {
@@ -69,7 +73,11 @@ onMounted(() => {
 // Reconnect when route changes (e.g., after login)
 watch(
   () => route.fullPath,
-  () => {
+  (to, from) => {
+    const token = sessionStorage.getItem('chat_token');
+    if (!token) {
+      return;
+    }
     if (ws.status.value === 'disconnected') {
       connectIfLoggedIn();
     }

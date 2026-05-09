@@ -2,8 +2,10 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { userApi } from '@/utils/api';
+import { useWebSocket } from '@/composables/useWebSocket';
 
 const router = useRouter();
+const ws = useWebSocket();
 
 const userInfo = ref<{
   userId: string;
@@ -127,6 +129,7 @@ function formatDate(timestamp: number): string {
 }
 
 function logout() {
+  ws.disconnect();
   sessionStorage.clear();
   router.push('/login');
 }

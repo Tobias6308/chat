@@ -207,6 +207,15 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   /**
+   * 更新会话名称
+   * @param conversationId - 会话 ID
+   * @param name - 新名称
+   */
+  function updateConversationName(conversationId: string, name: string): void {
+    updateConversation(conversationId, { name });
+  }
+
+  /**
    * 切换置顶状态
    * @param conversationId - 会话 ID
    */
@@ -435,6 +444,7 @@ export const useConversationStore = defineStore('conversation', () => {
     upsertConversations,
     removeConversation,
     updateConversation,
+    updateConversationName,
     togglePin,
     toggleMute,
     incrementUnread,

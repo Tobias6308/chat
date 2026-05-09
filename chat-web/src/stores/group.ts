@@ -3,6 +3,7 @@ import { ref, computed, shallowRef, triggerRef } from 'vue';
 import { nanoid } from 'nanoid';
 import { groupApi } from '@/utils/api';
 import type { Group, GroupMember, GroupMemberRole, GroupJoinRequest, GroupInvite } from '@/types/chat';
+import { useConversationStore } from './conversation';
 
 export const useGroupStore = defineStore('group', () => {
   // Groups list
@@ -553,14 +554,21 @@ export const useGroupStore = defineStore('group', () => {
    * Update group info
    */
   async function updateGroupInfo(groupId: string, name?: string, description?: string, avatar?: string): Promise<void> {
+    const conversationStore = useConversationStore();
     try {
       await groupApi.update(groupId, { name, description });
+      const group = getGroupById(groupId);
+      const newName = name || group?.name;
       updateGroup(groupId, {
-        name: name || getGroupById(groupId)?.name,
-        description: description !== undefined ? description : getGroupById(groupId)?.description,
-        avatar: avatar !== undefined ? avatar : getGroupById(groupId)?.avatar,
+        name: newName,
+        description: description !== undefined ? description : group?.description,
+        avatar: avatar !== undefined ? avatar : group?.avatar,
         updatedAt: Date.now()
       });
+      // 同步更新会话列表中的群组名称
+      if (name && group?.conversationId) {
+        conversationStore.updateConversationName(group.conversationId, name);
+      }
     } catch (error) {
       console.error('Failed to update group:', error);
       throw error;
