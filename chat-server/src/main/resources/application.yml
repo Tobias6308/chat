@@ -1,0 +1,103 @@
+server:
+  # HTTP 服务器端口 (用于 REST API)
+  port: 8082
+
+spring:
+  application:
+    name: chat-server
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  data:
+    mongodb:
+      uri: mongodb://chat:chat123@server.local.com:27017/chat
+      database: chat
+      auto-index-creation: true
+      mongo-client-re连接:
+        max-connection-idle-time: 60000
+        max-connection-life-time: 0
+
+    redis:
+      host: server.local.com
+      port: 6879
+      password: redis.123456
+      database: 6
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# Netty WebSocket 服务器配置
+netty:
+  # Boss 线程数 (用于接受连接)
+  boss-threads: 1
+  # Worker 线程数 (用于处理 I/O)
+  worker-threads: 16
+  # WebSocket 端口
+  port: 8081
+  # 最大帧长度 (字节)
+  max-frame-length: 65536
+
+# JWT 配置
+jwt:
+  # JWT 密钥 (生产环境应使用环境变量)
+  secret: chat-server-secret-key-change-in-production-2024
+  # 令牌过期时间 (毫秒) - 7 天
+  expiration: 604800000
+
+# 管理员 JWT 配置
+admin-jwt:
+  # 独立密钥
+  secret: admin-chat-server-secret-key-2024-separate-from-web
+  # 令牌过期时间 (毫秒) - 24 小时
+  expiration: 86400000
+
+# 管理员配置
+admin:
+  # 是否启用数据重置功能 (生产环境建议关闭)
+  reset-enabled: false
+
+# 文件上传配置
+file:
+  upload:
+    # 上传文件存储根目录
+    base-path: ./uploads
+    # 允许的最大文件大小 (MB)
+    max-size: 50
+    # 允许的文件类型
+    allowed-extensions:
+      - jpg
+      - jpeg
+      - png
+      - gif
+      - bmp
+      - webp
+      - mp4
+      - avi
+      - mov
+      - wmv
+      - mp3
+      - wav
+      - pdf
+      - doc
+      - docx
+      - xls
+      - xlsx
+      - txt
+  # 文件服务器地址 (前端拼接图片URL用)
+  server-url: http://localhost:8082
+
+# 日志配置
+logging:
+  level:
+    #com.chat.netty.JsonEncoder: INFO
+    com.chat: INFO
+    io.netty: INFO
+    org.springframework.data.mongodb: INFO

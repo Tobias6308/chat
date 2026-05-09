@@ -1,0 +1,47 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.bak
+*.swp
+
+# OpenCode
+.opencode/
+
+# Scripts
+test-api.ps1
+
+# Uploads
+chat-server/uploads/
