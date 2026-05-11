@@ -9,6 +9,7 @@ import com.chat.repository.GroupRepository;
 import com.chat.repository.UserRepository;
 import com.chat.service.RedisMuteService;
 import com.chat.service.RedisPinService;
+import com.chat.util.RedisCacheUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,9 +29,6 @@ public class GroupController {
     private GroupRepository groupRepository;
 
     @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
     private ConversationRepository conversationRepository;
 
     @Autowired
@@ -38,6 +36,9 @@ public class GroupController {
 
     @Autowired
     private RedisMuteService redisMuteService;
+
+    @Autowired
+    private RedisCacheUtil redisCacheUtil;
 
     /**
      * 创建群组
@@ -63,9 +64,8 @@ public class GroupController {
 
         List<Group.GroupMember> members = new ArrayList<>();
 
-        Optional<User> ownerOpt = userRepository.findById(userId);
-        if (ownerOpt.isPresent()) {
-            User owner = ownerOpt.get();
+        User owner = redisCacheUtil.getFullUserById(userId);
+        if (owner != null) {
             members.add(Group.GroupMember.builder()
                 .userId(userId)
                 .nickname(owner.getNickname())
@@ -78,9 +78,8 @@ public class GroupController {
         if (memberIds != null) {
             for (String memberId : memberIds) {
                 if (!memberId.equals(userId)) {
-                    Optional<User> userOpt = userRepository.findById(memberId);
-                    if (userOpt.isPresent()) {
-                        User user = userOpt.get();
+                    User user = redisCacheUtil.getFullUserById(memberId);
+                    if (user != null) {
                         members.add(Group.GroupMember.builder()
                             .userId(memberId)
                             .nickname(user.getNickname())
@@ -341,9 +340,8 @@ public class GroupController {
 
         for (String memberId : memberIds) {
             if (!existingMemberIds.contains(memberId)) {
-                Optional<User> userOpt = userRepository.findById(memberId);
-                if (userOpt.isPresent()) {
-                    User user = userOpt.get();
+                User user = redisCacheUtil.getFullUserById(memberId);
+                if (user != null) {
                     newMembers.add(Group.GroupMember.builder()
                         .userId(memberId)
                         .nickname(user.getNickname())

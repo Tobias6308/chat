@@ -45,3 +45,6 @@ test-api.ps1
 
 # Uploads
 chat-server/uploads/
+
+# Scripts
+scripts/

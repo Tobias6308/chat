@@ -105,6 +105,13 @@ export function useWebSocket() {
   }
 
   /**
+   * Remove all listeners for an event
+   */
+  function off<K extends WSEventName>(event: K): void {
+    eventListeners.delete(event);
+  }
+
+  /**
    * Emit event to all listeners
    * @param event - Event name
    * @param payload - Event payload
@@ -256,7 +263,12 @@ export function useWebSocket() {
         const payload = deserializePayload(event.data);
         if (payload) {
           handleServerPayload(payload);
+          // 通用消息事件
           emit('message', { payload, timestamp: Date.now() });
+          // 根据 payload.type 转发到具体类型事件
+          if (payload.type) {
+            emit(payload.type as WSEventName, { payload, timestamp: Date.now() });
+          }
         }
       }
     };
@@ -338,6 +350,11 @@ export function useWebSocket() {
 
       case 'ack_ok':
         // ACK handling is done by the store
+        break;
+
+      case 'message_status_updated':
+        // Message status updated (delivered/read)
+        emit('message_status_updated', payload);
         break;
 
       case 'history':
@@ -779,6 +796,50 @@ export function useWebSocket() {
   });
 
   // ============================================
+  // Service Session Methods
+  // ============================================
+
+  function sendServiceMessage(content: string, contentType = 'text'): void {
+    const payload: ClientPayload = {
+      type: 'service',
+      id: nanoid(),
+      timestamp: Date.now(),
+      payload: { action: 'send_message', content, contentType }
+    };
+    sendPayload(payload, true);
+  }
+
+  function sendServiceEnd(): void {
+    const payload: ClientPayload = {
+      type: 'service',
+      id: nanoid(),
+      timestamp: Date.now(),
+      payload: { action: 'end_session' }
+    };
+    sendPayload(payload, true);
+  }
+
+  function sendServiceRead(): void {
+    const payload: ClientPayload = {
+      type: 'service',
+      id: nanoid(),
+      timestamp: Date.now(),
+      payload: { action: 'mark_read' }
+    };
+    sendPayload(payload, true);
+  }
+
+  function sendServiceTyping(): void {
+    const payload: ClientPayload = {
+      type: 'service',
+      id: nanoid(),
+      timestamp: Date.now(),
+      payload: { action: 'typing' }
+    };
+    sendPayload(payload, true);
+  }
+
+  // ============================================
   // Return Public API
    // ============================================
 
@@ -797,11 +858,18 @@ export function useWebSocket() {
     sendAck,
     sendPayload,
 
+    // Service Session
+    sendServiceMessage,
+    sendServiceEnd,
+    sendServiceRead,
+    sendServiceTyping,
+
     // History
     fetchHistory,
 
     // Events
     on,
+    off,
 
     // Queue
     messageQueue: readonly(messageQueue),

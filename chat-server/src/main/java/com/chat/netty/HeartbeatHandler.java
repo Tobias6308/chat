@@ -18,7 +18,7 @@ public class HeartbeatHandler {
     
     /**
      * 处理 ping 消息
-     * 
+     *
      * @param ctx Channel 上下文
      * @param payload 客户端消息载荷
      */
@@ -27,12 +27,23 @@ public class HeartbeatHandler {
         ServerPayload pong = new ServerPayload();
         pong.setType("pong");
         pong.setTimestamp(System.currentTimeMillis());
-        
+
         // 发送 pong
         ctx.writeAndFlush(pong);
-        
+
+        // 从 payload 获取 timestamp - 支持两种格式：
+        // 1. timestamp 在顶层 payload.timestamp
+        // 2. timestamp 在内层 payload.payload.timestamp
+        Long timestamp = payload.getTimestamp();
+        if (timestamp == null && payload.getPayload() instanceof Map) {
+            Object ts = ((Map<?, ?>) payload.getPayload()).get("timestamp");
+            if (ts instanceof Number) {
+                timestamp = ((Number) ts).longValue();
+            }
+        }
+
         String channelId = ctx.channel().id().asLongText();
-        heartbeatLogger.info("PING | channelId={} | timestamp={}", channelId, payload.getTimestamp());
+        heartbeatLogger.info("PING | channelId={} | timestamp={}", channelId, timestamp);
         logger.debug("Received ping, sent pong");
     }
     

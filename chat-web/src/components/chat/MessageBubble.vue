@@ -156,12 +156,12 @@ const audioUrl = computed(() => {
 });
 
 // 语音时长 (从 metadata 获取，或估算)
-const audioDuration = computed(() => {
-  if (isAudioMessage.value && props.message.metadata?.duration) {
-    return props.message.metadata.duration as number;
-  }
-  return 0;
-});
+// const audioDuration = computed(() => {
+//   if (isAudioMessage.value && props.message.metadata?.duration) {
+//     return props.message.metadata.duration as number;
+//   }
+//   return 0;
+// });
 
 // 文件名
 const fileName = computed(() => {
@@ -317,7 +317,7 @@ const contentTypeIcon = computed(() => {
           </div>
           <!-- 文件大小 -->
           <div v-if="message.metadata?.size" class="text-xs text-gray-400 mt-1 text-right">
-            {{ formatFileSize(message.metadata.size) }}
+            {{ formatFileSize(message.metadata.size as number) }}
           </div>
         </div>
 

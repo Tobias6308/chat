@@ -26,6 +26,9 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<ClientPayload>
     @Autowired
     private HeartbeatHandler heartbeatHandler;
     
+    @Autowired
+    private ServiceMessageHandler serviceMessageHandler;
+    
     /**
      * 会话管理器
      */
@@ -103,11 +106,16 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<ClientPayload>
                 messageHandler.handleAck(ctx, msg);
                 break;
             
-            // 获取历史消息
+// 获取历史消息
             case "fetch_history":
                 messageHandler.handleHistory(ctx, msg);
                 break;
             
+            // 客服会话消息
+            case "service":
+                serviceMessageHandler.handleServiceMessage(ctx, msg);
+                break;
+             
             // 未知消息类型
             default:
                 logger.warn("Unknown message type: {}", type);

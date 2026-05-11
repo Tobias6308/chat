@@ -59,6 +59,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/service',
+    name: 'Service',
+    component: () => import('@/views/Service.vue'),
+    meta: {
+      title: '联系客服',
+      requiresAuth: true
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }

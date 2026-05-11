@@ -121,4 +121,19 @@ public interface MessageRepository extends MongoRepository<Message, String> {
      * 根据发送者查询消息（分页）
      */
     Page<Message> findBySenderId(String senderId, Pageable pageable);
+
+    /**
+     * 根据会话ID和创建时间查询消息（用于获取离线消息）
+     */
+    List<Message> findByConversationIdAndCreatedAtGreaterThan(String conversationId, Long createdAt);
+
+    /**
+     * 根据会话ID查询消息（分页，按时间正序）
+     */
+    List<Message> findByConversationIdOrderByCreatedAtAsc(String conversationId, org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * 批量查询多个会话的最新消息（按时间倒序）
+     */
+    List<Message> findTopByConversationIdInOrderByCreatedAtDesc(List<String> conversationIds, int limit);
 }

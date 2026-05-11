@@ -268,6 +268,20 @@ function logout() {
           </div>
         </div>
 
+        <!-- Service Section -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-800">联系客服</h2>
+          </div>
+          <p class="text-sm text-gray-500 mt-1 mb-3">遇到问题？联系我们的客服团队</p>
+          <button
+            class="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+            @click="router.push('/service')"
+          >
+            联系客服
+          </button>
+        </div>
+
         <!-- Change Password Section -->
         <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
           <div class="flex items-center justify-between mb-4">

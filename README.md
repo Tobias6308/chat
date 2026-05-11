@@ -54,6 +54,28 @@ webchat/
 - 消息管理
 - 管理员账户管理
 
+### 客服模块 (Service)
+
+#### 用户端功能
+- 查看客服在线状态和等待人数
+- 加入等待队列
+- 实时会话聊天
+- 发送文字/文件消息
+- 结束会话并评价
+
+#### 客服端功能
+- 工作台：会话列表、实时消息收发
+- 接待用户：自动从队列分配
+- 快捷回复：预设常用语
+- 会话转移：转接其他客服
+- 备注标签：记录客户信息
+
+#### 管理功能
+- 客服账号管理（创建、状态设置）
+- 服务统计数据（总会话、进行中、已完成）
+- 绩效统计（平均会话时长）
+- 会话历史记录
+
 ## 快速开始
 
 ### 后端启动
@@ -360,3 +382,60 @@ public void broadcastToConversation(String conversationId, String excludeUserId,
 4. **消息内存限制**: 每会话最多 500 条
 5. **WebSocket 复用**: 长连接避免频繁握手
 6. **心跳检测**: 及时发现断连
+7. **客服状态缓存**: 服务状态 Redis 缓存 30 秒
+8. **虚拟列表**: 前端消息列表虚拟滚动
+
+### 10. 客服模块实现
+
+#### 10.1 队列机制 (Redis List)
+
+```
+Redis Key: chat:service:queue
+
+队列结构: [userId|name|avatar, userId|name|avatar, ...]
+
+操作:
+- leftPop: 客服接待用户
+- rightPush: 用户加入队列
+- remove: 用户离开队列
+- size: 等待人数
+```
+
+#### 10.2 会话状态机
+
+```
+waiting → chatting → finished
+   │           │
+   └───────────┴── timeout (15分钟等待/30分钟无活动)
+```
+
+#### 10.3 客服能力限制
+
+每个客服有 `maxChats` (最大接待数) 和 `currentChats` (当前接待数)，只有 `currentChats < maxChats` 时才会被分配新用户。
+
+#### 10.4 数据模型
+
+```java
+// ServiceSession 文档
+{
+  id: "service_userId",    // 会话ID
+  userId: "xxx",           // 用户ID
+  userName: "用户昵称",    // 用户昵称
+  serviceId: "yyy",        // 客服ID
+  serviceName: "客服昵称", // 客服昵称
+  status: "waiting|chatting|finished", // 会话状态
+  rating: 5,               // 满意度评分 (1-5)
+  internalNote: "备注",     // 内部备注
+  tags: ["VIP", "售后"],   // 会话标签
+  createdAt: timestamp,
+  chatStartAt: timestamp,
+  endedAt: timestamp,
+  lastMessageAt: timestamp
+}
+```
+
+#### 10.5 Redis 缓存
+
+- 服务状态缓存 30 秒 (减少数据库查询)
+- 会话关系缓存 (userId → serviceId)
+- 队列状态实时查询

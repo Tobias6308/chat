@@ -60,6 +60,54 @@ onMounted(() => {
     }
   });
 
+  // 消息确认
+  ws.on('ack_ok', ({ payload }: any) => {
+    const { messageId, status } = payload.payload || {};
+    if (messageId && messageStore.messagesMap) {
+      for (const [convId, messages] of messageStore.messagesMap) {
+        const msg = messages.find((m: any) => m.id === messageId);
+        if (msg) {
+          msg.status = status || 'delivered';
+          break;
+        }
+      }
+    }
+  });
+
+  // 消息状态更新 (已送达/已读)
+  ws.on('message_status_updated', ({ payload }: any) => {
+    const { messageId, status } = payload.payload || {};
+    if (messageId && messageStore.messagesMap) {
+      for (const [convId, messages] of messageStore.messagesMap) {
+        const msg = messages.find((m: any) => m.id === messageId);
+        if (msg) {
+          msg.status = status;
+          console.log(`[App] Message status updated: ${messageId} -> ${status}`);
+          break;
+        }
+      }
+    }
+  });
+
+  // 历史消息
+  ws.on('history', ({ payload }: any) => {
+    console.log('[App] History received:', payload.payload);
+  });
+
+  // 通用错误处理
+  ws.on('error', ({ payload }: any) => {
+    console.error('[App] Server error:', payload.payload?.message, payload.payload?.code);
+    if (payload.payload?.code === 'AUTH_EXPIRED' || payload.payload?.code === 'INVALID_TOKEN') {
+      sessionStorage.removeItem('chat_token');
+      router.push('/login');
+    }
+  });
+
+  // 认证成功
+  ws.on('auth_ok', ({ payload }: any) => {
+    console.log('[App] Auth OK:', payload.payload);
+  });
+
   // Auto-connect if token exists
   connectIfLoggedIn();
 
@@ -73,7 +121,7 @@ onMounted(() => {
 // Reconnect when route changes (e.g., after login)
 watch(
   () => route.fullPath,
-  (to, from) => {
+  () => {
     const token = sessionStorage.getItem('chat_token');
     if (!token) {
       return;

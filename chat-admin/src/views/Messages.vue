@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { adminApi } from '@/utils/api'
+import { adminApi, getFullFileUrl } from '@/utils/api'
 
 const messages = ref<any[]>([])
 const loading = ref(true)
@@ -77,7 +77,21 @@ async function handleDeleteMessage(msg: any) {
           <el-tag v-else>{{ row.contentType }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="content" label="内容" />
+      <el-table-column prop="content" label="内容">
+        <template #default="{ row }">
+          <template v-if="row.contentType === 'image'">
+            <img :src="getFullFileUrl(row.content)" class="message-image" />
+          </template>
+          <template v-else-if="row.contentType === 'file'">
+            <el-link :href="getFullFileUrl(row.content)" target="_blank" type="primary">
+              📎 文件
+            </el-link>
+          </template>
+          <template v-else>
+            {{ row.content }}
+          </template>
+        </template>
+      </el-table-column>
       <el-table-column prop="createdAt" label="发送时间" width="180" />
       <el-table-column label="操作" width="100">
         <template #default="{ row }">
@@ -106,5 +120,15 @@ async function handleDeleteMessage(msg: any) {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+.message-image {
+  max-width: 80px;
+  max-height: 60px;
+  border-radius: 4px;
+  cursor: pointer;
+  object-fit: cover;
+}
+.message-image:hover {
+  transform: scale(1.1);
 }
 </style>

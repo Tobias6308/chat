@@ -260,7 +260,7 @@ export const useConversationStore = defineStore('conversation', () => {
    * @param conversationId - 会话 ID
    * @param count - 增量 (默认 1)
    */
-  function incrementUnread(conversationId: string, count = 1): void {
+  function incrementUnread(conversationId: string, _count: number = 1): void {
     const conv = conversations.value.find(c => c.id === conversationId);
     if (!conv) return;
 

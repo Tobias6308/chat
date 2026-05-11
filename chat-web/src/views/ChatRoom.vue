@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, watch, computed } from 'vue';
+import { ElMessage } from 'element-plus';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useMessageStore } from '@/stores/message';
 import { useConversationStore } from '@/stores/conversation';
-import { chatApi, uploadApi } from '@/utils/api';
+import { chatApi } from '@/utils/api';
 import ChatLayout from '@/components/chat/ChatLayout.vue';
 
 const ws = useWebSocket();
@@ -107,6 +108,10 @@ onMounted(() => {
 // Handle send message
 async function handleSendMessage(content: string, conversationId: string, contentType: string = 'text'): Promise<void> {
   console.log('[ChatRoom] handleSendMessage called, content:', content, 'conversationId:', conversationId, 'contentType:', contentType, 'ws status:', ws.status.value);
+
+  if (!ws.isConnected) {
+    ElMessage.warning('网络未连接，消息将稍后发送')
+  }
 
   // 创建乐观消息
   const optimisticMessage = messageStore.createOptimisticMessage(

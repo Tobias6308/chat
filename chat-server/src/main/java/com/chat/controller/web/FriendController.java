@@ -7,6 +7,7 @@ import com.chat.document.User;
 import com.chat.repository.FriendRepository;
 import com.chat.repository.UserRepository;
 import com.chat.service.ConversationService;
+import com.chat.util.RedisCacheUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,9 @@ public class FriendController {
 
     @Autowired
     private ConversationService conversationService;
+
+    @Autowired
+    private RedisCacheUtil redisCacheUtil;
 
     /**
      * 搜索用户
@@ -101,8 +105,8 @@ public class FriendController {
             return error(ErrorCode.INVALID_PARAM, "不能添加自己为好友");
         }
 
-        Optional<User> targetUserOpt = userRepository.findById(targetUserId);
-        if (!targetUserOpt.isPresent()) {
+        User targetUser = redisCacheUtil.getFullUserById(targetUserId);
+        if (targetUser == null) {
             return error(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
 
@@ -268,9 +272,8 @@ public class FriendController {
             if (addedUserIds.contains(friendUserId)) continue;
             addedUserIds.add(friendUserId);
 
-            Optional<User> userOpt = userRepository.findById(friendUserId);
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            User user = redisCacheUtil.getFullUserById(friendUserId);
+            if (user != null) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("userId", user.getId());
                 item.put("username", user.getUsername());
@@ -288,9 +291,8 @@ public class FriendController {
             if (addedUserIds.contains(friendUserId)) continue;
             addedUserIds.add(friendUserId);
 
-            Optional<User> userOpt = userRepository.findById(friendUserId);
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            User user = redisCacheUtil.getFullUserById(friendUserId);
+            if (user != null) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("userId", user.getId());
                 item.put("username", user.getUsername());
@@ -326,9 +328,8 @@ public class FriendController {
 
         List<Map<String, Object>> received = new ArrayList<>();
         for (Friend request : receivedPending) {
-            Optional<User> userOpt = userRepository.findById(request.getUserId());
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            User user = redisCacheUtil.getFullUserById(request.getUserId());
+            if (user != null) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("requestId", request.getId());
                 item.put("userId", user.getId());
@@ -342,9 +343,8 @@ public class FriendController {
         }
 
         for (Friend request : receivedProcessed) {
-            Optional<User> userOpt = userRepository.findById(request.getUserId());
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            User user = redisCacheUtil.getFullUserById(request.getUserId());
+            if (user != null) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("requestId", request.getId());
                 item.put("userId", user.getId());
@@ -359,9 +359,8 @@ public class FriendController {
 
         List<Map<String, Object>> sent = new ArrayList<>();
         for (Friend request : sentPending) {
-            Optional<User> userOpt = userRepository.findById(request.getFriendId());
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            User user = redisCacheUtil.getFullUserById(request.getFriendId());
+            if (user != null) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("requestId", request.getId());
                 item.put("userId", user.getId());
@@ -375,9 +374,8 @@ public class FriendController {
         }
 
         for (Friend request : sentProcessed) {
-            Optional<User> userOpt = userRepository.findById(request.getFriendId());
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            User user = redisCacheUtil.getFullUserById(request.getFriendId());
+            if (user != null) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("requestId", request.getId());
                 item.put("userId", user.getId());

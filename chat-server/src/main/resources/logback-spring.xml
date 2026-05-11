@@ -7,7 +7,7 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    
+
     <!-- 应用日志文件 -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/chat-server.log</file>
@@ -21,7 +21,7 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    
+
     <!-- 心跳日志文件 -->
     <appender name="HEARTBEAT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/heartbeat.log</file>
@@ -33,7 +33,7 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %msg%n</pattern>
         </encoder>
     </appender>
-    
+
     <!-- MongoDB 日志文件 -->
     <appender name="MONGO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/mongodb.log</file>
@@ -45,23 +45,124 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %msg%n</pattern>
         </encoder>
     </appender>
-    
+
+    <!-- 客服业务日志文件（队列、会话、转接等） -->
+    <appender name="SERVICE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/service.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/service.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 客服推送日志（客服 -> 用户的消息推送） -->
+    <appender name="SERVICE_PUSH_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/service-push.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/service-push.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 用户推送日志（用户 -> 客服的消息推送） -->
+    <appender name="USER_PUSH_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/user-push.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/user-push.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <!-- 心跳日志记录器 -->
     <logger name="HEARTBEAT" level="INFO" additivity="false">
         <appender-ref ref="HEARTBEAT_FILE"/>
+        <appender-ref ref="CONSOLE"/>
     </logger>
-    
+
     <!-- MongoDB 操作日志记录器 -->
     <logger name="MONGO" level="DEBUG" additivity="false">
         <appender-ref ref="MONGO_FILE"/>
+        <appender-ref ref="CONSOLE"/>
     </logger>
-    
+
+    <!-- 客服业务日志记录器 -->
+    <logger name="SERVICE" level="INFO" additivity="false">
+        <appender-ref ref="SERVICE_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- 客服推送日志记录器 -->
+    <logger name="SERVICE_PUSH" level="INFO" additivity="false">
+        <appender-ref ref="SERVICE_PUSH_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- 用户推送日志记录器 -->
+    <logger name="USER_PUSH" level="INFO" additivity="false">
+        <appender-ref ref="USER_PUSH_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- API 日志文件 -->
+    <appender name="API_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/api.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/api.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 慢 API 日志文件 -->
+    <appender name="SLOW_API_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/slow-api.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/slow-api.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- API 日志记录器 -->
+    <logger name="apiLog" level="INFO" additivity="false">
+        <appender-ref ref="API_FILE"/>
+    </logger>
+
+    <!-- 慢 API 日志记录器 -->
+    <logger name="slowApiLog" level="WARN" additivity="false">
+        <appender-ref ref="SLOW_API_FILE"/>
+    </logger>
+
+    <!-- Auth日志记录器 -->
+    <logger name="com.chat.netty.AuthHandler" level="DEBUG" additivity="false">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
     <!-- 应用日志 -->
-    <logger name="com.chat" level="INFO"/>
+    <logger name="com.chat" level="DEBUG"/>
     <logger name="io.netty" level="INFO"/>
     <logger name="org.springframework.data.mongodb" level="DEBUG"/>
     <logger name="org.mongodb.driver" level="INFO"/>
-    
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>

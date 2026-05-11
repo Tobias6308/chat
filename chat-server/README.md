@@ -800,6 +800,441 @@ DELETE /api/admin/messages/{id}
 Authorization: Bearer <token>
 ```
 
+## 客服模块 API
+
+### 用户端接口
+
+#### 获取客服状态
+```
+GET /api/chat/service/status
+Authorization: Bearer <token>
+
+Response:
+{
+  "hasAvailableService": true,
+  "onlineCount": 2,
+  "waitingCount": 0,
+  "availableServices": [
+    { "id": "xxx", "nickname": "客服小王", "availableSlots": 5 }
+  ]
+}
+```
+
+#### 获取客服列表
+```
+GET /api/chat/service/list
+Authorization: Bearer <token>
+
+Response:
+{
+  "services": [
+    { "id": "xxx", "nickname": "客服小王", "status": "online", "maxChats": 10, "currentChats": 3 }
+  ]
+}
+```
+
+#### 加入等待队列
+```
+POST /api/chat/service/join
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "userName": "用户昵称",
+  "userAvatar": "头像URL"
+}
+
+Response:
+{
+  "success": true,
+  "status": "waiting",
+  "position": 1,
+  "estimatedWait": "3分钟"
+}
+```
+
+#### 离开队列
+```
+POST /api/chat/service/leave
+Authorization: Bearer <token>
+
+Response:
+{ "success": true }
+```
+
+#### 获取队列状态
+```
+GET /api/chat/service/queue
+Authorization: Bearer <token>
+
+Response:
+{
+  "status": "chatting",
+  "sessionId": "service_xxx",
+  "serviceId": "yyy",
+  "serviceName": "客服小王"
+}
+```
+
+#### 获取会话消息
+```
+GET /api/chat/service/conversation?limit=50&skip=0
+Authorization: Bearer <token>
+
+Response:
+{
+  "status": "chatting",
+  "messages": [
+    { "id": "msg_xxx", "senderId": "userId", "content": "你好", "contentType": "text", "createdAt": 1234567890 }
+  ]
+}
+```
+
+#### 发送消息
+```
+POST /api/chat/service/message
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "content": "消息内容",
+  "contentType": "text",
+  "fileUrl": "可选的文件URL",
+  "fileName": "可选的文件名"
+}
+
+Response:
+{
+  "success": true,
+  "message": { "id": "msg_xxx", ... }
+}
+```
+
+#### 结束会话
+```
+POST /api/chat/service/end
+Authorization: Bearer <token>
+
+Response:
+{ "success": true }
+```
+
+#### 评价会话
+```
+POST /api/chat/service/rate
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "comment": "服务态度很好"
+}
+
+Response:
+{ "success": true }
+```
+
+#### 标记已读
+```
+POST /api/chat/service/read
+Authorization: Bearer <token>
+
+Response:
+{ "success": true }
+```
+
+### 客服端接口
+
+#### 获取客服列表
+```
+GET /api/admin/service/list
+Authorization: Bearer <admin_token>
+
+Response:
+{
+  "services": [...]
+}
+```
+
+#### 创建客服账号
+```
+POST /api/admin/service/create
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "username": "service01",
+  "password": "123456",
+  "nickname": "客服小王"
+}
+
+Response:
+{ "success": true }
+```
+
+#### 更新客服状态
+```
+PUT /api/admin/service/status
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "status": "online"  // online/busy/offline
+}
+
+Response:
+{ "success": true, "status": "online" }
+```
+
+#### 接待下一个用户
+```
+POST /api/admin/service/next
+Authorization: Bearer <admin_token>
+
+Response:
+{
+  "success": true,
+  "sessionId": "service_xxx",
+  "userId": "yyy",
+  "userName": "用户昵称"
+}
+```
+
+#### 获取会话列表
+```
+GET /api/admin/service/sessions
+Authorization: Bearer <admin_token>
+
+Response:
+{
+  "sessions": [
+    {
+      "id": "service_xxx",
+      "userId": "yyy",
+      "userName": "用户昵称",
+      "status": "chatting",
+      "chatStartAt": 1234567890
+    }
+  ]
+}
+```
+
+#### 获取会话消息
+```
+GET /api/admin/service/session/{sessionId}/messages?limit=50&skip=0
+Authorization: Bearer <admin_token>
+
+Response:
+{
+  "messages": [...]
+}
+```
+
+#### 发送消息
+```
+POST /api/admin/service/message
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "sessionId": "service_xxx",
+  "content": "回复内容",
+  "contentType": "text",
+  "fileUrl": "可选",
+  "fileName": "可选"
+}
+
+Response:
+{
+  "success": true,
+  "message": {...}
+}
+```
+
+#### 结束会话
+```
+POST /api/admin/service/end
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "sessionId": "service_xxx"
+}
+
+Response:
+{ "success": true }
+```
+
+#### 转移会话
+```
+POST /api/admin/service/transfer
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "sessionId": "service_xxx",
+  "toServiceId": "目标客服ID"
+}
+
+Response:
+{ "success": true, "serviceName": "客服小李" }
+```
+
+#### 获取快捷回复
+```
+GET /api/admin/service/quick-replies
+Authorization: Bearer <admin_token>
+
+Response:
+{
+  "quickReplies": [
+    { "id": "qr1", "title": "您好", "content": "您好，请问有什么可以帮您？" }
+  ]
+}
+```
+
+#### 添加快捷回复
+```
+POST /api/admin/service/quick-replies
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "title": "问候语",
+  "content": "您好，很高兴为您服务"
+}
+
+Response:
+{ "success": true }
+```
+
+#### 删除快捷回复
+```
+DELETE /api/admin/service/quick-replies/{replyId}
+Authorization: Bearer <admin_token>
+
+Response:
+{ "success": true }
+```
+
+#### 更新会话备注
+```
+PUT /api/admin/service/session/{sessionId}/note
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "note": "客户询问了退货政策"
+}
+
+Response:
+{ "success": true }
+```
+
+#### 更新会话标签
+```
+PUT /api/admin/service/session/{sessionId}/tags
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "tags": ["VIP", "售后"]
+}
+
+Response:
+{ "success": true }
+```
+
+#### 获取服务统计
+```
+GET /api/admin/service/stats
+Authorization: Bearer <admin_token>
+
+Response:
+{
+  "totalSessions": 100,
+  "activeSessions": 5,
+  "finishedSessions": 90,
+  "waitingSessions": 2,
+  "onlineServices": 3,
+  "queueSize": 0
+}
+```
+
+#### 获取客服绩效
+```
+GET /api/admin/service/performance
+Authorization: Bearer <admin_token>
+
+Response:
+{
+  "totalSessions": 50,
+  "finishedSessions": 48,
+  "avgDuration": 15  // 分钟
+}
+```
+
+### WebSocket 客服消息协议
+
+#### 客户端发送 (用户端)
+```json
+{
+  "type": "service",
+  "id": "msg_xxx",
+  "timestamp": 1234567890,
+  "payload": {
+    "action": "join_queue",
+    "userName": "用户昵称",
+    "userAvatar": "头像URL"
+  }
+}
+```
+
+支持的 action:
+- `join_queue` - 加入队列
+- `leave_queue` - 离开队列
+- `get_status` - 获取状态
+- `get_messages` - 获取消息
+- `send_message` - 发送消息
+- `end_session` - 结束会话
+- `mark_read` - 标记已读
+- `typing` - 正在输入
+
+#### 服务器推送
+```json
+{
+  "type": "service_queue_join",
+  "id": "msg_xxx",
+  "payload": {
+    "success": true,
+    "status": "waiting",
+    "position": 1
+  }
+}
+```
+
+```json
+{
+  "type": "service_message",
+  "payload": {
+    "id": "msg_xxx",
+    "senderId": "userId",
+    "content": "消息内容",
+    "createdAt": 1234567890
+  }
+}
+```
+
+```json
+{
+  "type": "service_typing",
+  "payload": {
+    "userId": "xxx",
+    "userName": "用户昵称"
+  }
+}
+```
+
 ## 构建与运行
 
 ```bash

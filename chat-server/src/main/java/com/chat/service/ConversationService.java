@@ -8,6 +8,7 @@ import com.chat.repository.ConversationRepository;
 import com.chat.repository.FriendRepository;
 import com.chat.repository.MessageRepository;
 import com.chat.repository.UserRepository;
+import com.chat.util.RedisCacheUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,6 +40,9 @@ public class ConversationService {
 
     @Autowired
     private MessageRepository messageRepository;
+
+    @Autowired
+    private RedisCacheUtil redisCacheUtil;
     
     /**
      * 获取或创建私聊会话
@@ -49,13 +53,13 @@ public class ConversationService {
      */
     public Conversation getOrCreatePrivate(String userId1, String userId2) {
         // 确保两个用户都存在
-        Optional<User> user1Opt = userRepository.findById(userId1);
-        Optional<User> user2Opt = userRepository.findById(userId2);
-        
-        if (!user1Opt.isPresent() || !user2Opt.isPresent()) {
+        User user1 = redisCacheUtil.getFullUserById(userId1);
+        User user2 = redisCacheUtil.getFullUserById(userId2);
+
+        if (user1 == null || user2 == null) {
             return null;
         }
-        
+
         // 先查找已存在的私聊 (检查两个用户是否都在参与者列表中)
         List<Conversation> existing = conversationRepository.findByParticipantsContainingAndType(userId1, "private");
         for (Conversation conv : existing) {
@@ -64,12 +68,12 @@ public class ConversationService {
                 return conv;
             }
         }
-        
-        String name1 = user1Opt.map(User::getNickname).orElse("用户");
-        String name2 = user2Opt.map(User::getNickname).orElse("用户");
-        
+
+        String name1 = user1.getNickname() != null ? user1.getNickname() : "用户";
+        String name2 = user2.getNickname() != null ? user2.getNickname() : "用户";
+
         // 私聊时，userId1 是当前用户，userId2 是对方，使用对方的头像
-        String avatar = user2Opt.map(User::getAvatar).orElse(null);
+        String avatar = user2.getAvatar();
         
         // 查找好友关系记录作为 relateId (使用新的单记录查询)
         String relateId = null;
@@ -112,15 +116,14 @@ public class ConversationService {
             String friendId = conversationId.substring("conv_friend_".length());
             
             // 获取用户信息
-            Optional<User> userOpt = userRepository.findById(userId);
-            Optional<User> friendOpt = userRepository.findById(friendId);
-            
-            if (!userOpt.isPresent() || !friendOpt.isPresent()) {
+            User user = redisCacheUtil.getFullUserById(userId);
+            User friend = redisCacheUtil.getFullUserById(friendId);
+
+            if (user == null || friend == null) {
                 return null;
             }
-            
-            String name = friendOpt.map(u -> u.getNickname() != null ? u.getNickname() : u.getUsername())
-                    .orElse("用户");
+
+            String name = friend.getNickname() != null ? friend.getNickname() : friend.getUsername();
             
             Conversation conversation = Conversation.builder()
                     .id(generateId())
@@ -174,12 +177,12 @@ public class ConversationService {
      * @return 用户信息
      */
     public User getUserById(String userId) {
-        return userRepository.findById(userId).orElse(null);
+        return redisCacheUtil.getFullUserById(userId);
     }
-    
+
     /**
      * 根据 ID 获取会话
-     * 
+     *
      * @param conversationId 会话 ID
      * @return 会话实体
      */

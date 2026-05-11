@@ -34,9 +34,10 @@ public class WebSocketChannelInitializer extends ChannelInitializer<SocketChanne
     
     /**
      * 空闲检测超时时间 (秒)
-     * 60秒内没有收到任何消息则触发 IdleStateEvent
+     * 90秒内没有收到任何消息则触发 IdleStateEvent
+     * 前端心跳30秒，设置3倍余量
      */
-    private static final int READER_IDLE_TIME = 60;
+    private static final int READER_IDLE_TIME = 90;
     
     /**
      * WebSocket 处理器 (业务逻辑)

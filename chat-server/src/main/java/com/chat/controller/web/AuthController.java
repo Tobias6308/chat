@@ -5,6 +5,7 @@ import com.chat.common.Md5Util;
 import com.chat.document.User;
 import com.chat.repository.UserRepository;
 import com.chat.security.JwtUtil;
+import com.chat.util.RedisCacheUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,9 @@ public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private RedisCacheUtil redisCacheUtil;
 
     /**
      * 用户注册
@@ -153,17 +157,17 @@ public class AuthController {
      */
     @GetMapping("/user")
     public ResponseEntity<Map<String, Object>> getUserInfo(@RequestAttribute String userId) {
-        return userRepository.findById(userId)
-            .map(user -> {
-                Map<String, Object> result = new HashMap<>();
-                result.put("id", user.getId());
-                result.put("username", user.getUsername());
-                result.put("nickname", user.getNickname());
-                result.put("avatar", user.getAvatar());
-                result.put("createdAt", user.getCreatedAt());
+        User user = redisCacheUtil.getFullUserById(userId);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", user.getId());
+        result.put("username", user.getUsername());
+        result.put("nickname", user.getNickname());
+        result.put("avatar", user.getAvatar());
+        result.put("createdAt", user.getCreatedAt());
 
-                return ResponseEntity.ok(result);
-            })
-            .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(result);
     }
 }

@@ -8,6 +8,10 @@ import Conversations from '@/views/Conversations.vue'
 import Friends from '@/views/Friends.vue'
 import Messages from '@/views/Messages.vue'
 import Profile from '@/views/Profile.vue'
+import ServiceWorkbench from '@/views/ServiceWorkbench.vue'
+import ServiceAccounts from '@/views/ServiceAccounts.vue'
+import ServiceStats from '@/views/ServiceStats.vue'
+import ServiceHistory from '@/views/ServiceHistory.vue'
 
 const routes = [
   { path: '/login', name: 'Login', component: Login },
@@ -18,7 +22,11 @@ const routes = [
   { path: '/conversations', name: 'Conversations', component: Conversations },
   { path: '/friends', name: 'Friends', component: Friends },
   { path: '/messages', name: 'Messages', component: Messages },
-  { path: '/profile', name: 'Profile', component: Profile, meta: { title: '账号设置' } }
+  { path: '/profile', name: 'Profile', component: Profile, meta: { title: '账号设置' } },
+  { path: '/service', name: 'ServiceWorkbench', component: ServiceWorkbench, meta: { title: '客服工作台' } },
+  { path: '/service-accounts', name: 'ServiceAccounts', component: ServiceAccounts, meta: { title: '客服账号管理' } },
+  { path: '/service-stats', name: 'ServiceStats', component: ServiceStats, meta: { title: '客服统计' } },
+  { path: '/service-history', name: 'ServiceHistory', component: ServiceHistory, meta: { title: '会话历史' } }
 ]
 
 const router = createRouter({

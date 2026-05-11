@@ -13,6 +13,7 @@ import com.chat.repository.FriendRepository;
 import com.chat.repository.GroupRepository;
 import com.chat.repository.MessageRepository;
 import com.chat.repository.UserRepository;
+import com.chat.util.RedisCacheUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +40,10 @@ public class AdminService {
     
     @Autowired
     private UserRepository userRepository;
-    
+
+    @Autowired
+    private RedisCacheUtil redisCacheUtil;
+
     @Autowired
     private GroupRepository groupRepository;
     
@@ -106,6 +110,7 @@ public class AdminService {
             .map(user -> {
                 user.setEnabled(enabled);
                 userRepository.save(user);
+                redisCacheUtil.invalidateFullUser(userId);
                 return true;
             })
             .orElse(false);
@@ -750,10 +755,126 @@ public class AdminService {
         result.put("adminId", admin.getId());
         result.put("username", admin.getUsername());
         result.put("nickname", admin.getNickname());
+        result.put("avatar", admin.getAvatar());
         result.put("roles", admin.getRoles());
+        result.put("status", admin.getStatus());
+        result.put("maxChats", admin.getMaxChats() != null ? admin.getMaxChats() : 10);
+        result.put("currentChats", admin.getCurrentChats() != null ? admin.getCurrentChats() : 0);
         result.put("createdAt", admin.getCreatedAt());
         result.put("lastLoginAt", admin.getLastLoginAt());
         return result;
+    }
+
+    // ============================================
+    // 客服管理
+    // ============================================
+
+    /**
+     * 更新客服状态
+     */
+    public boolean updateServiceStatus(String adminId, String status) {
+        Optional<AdminUser> adminOpt = adminUserRepository.findById(adminId);
+        return adminOpt.map(admin -> {
+            admin.setStatus(status);
+            if ("offline".equals(status)) {
+                admin.setCurrentChats(0);
+            }
+            adminUserRepository.save(admin);
+            return true;
+        }).orElse(false);
+    }
+
+    /**
+     * 获取所有客服列表
+     */
+    public List<Map<String, Object>> getServiceList() {
+        List<AdminUser> services = adminUserRepository.findAll();
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (AdminUser service : services) {
+            if (service.getRoles() != null && service.getRoles().contains("service")) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", service.getId());
+                item.put("username", service.getUsername());
+                item.put("nickname", service.getNickname());
+                item.put("avatar", service.getAvatar());
+                item.put("status", service.getStatus() != null ? service.getStatus() : "offline");
+                item.put("maxChats", service.getMaxChats() != null ? service.getMaxChats() : 10);
+                item.put("currentChats", service.getCurrentChats() != null ? service.getCurrentChats() : 0);
+                item.put("lastLoginAt", service.getLastLoginAt());
+                list.add(item);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * 获取可用的在线客服
+     */
+    public List<Map<String, Object>> getAvailableServices() {
+        List<AdminUser> services = adminUserRepository.findAll();
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (AdminUser service : services) {
+            if (service.getRoles() != null && service.getRoles().contains("service")) {
+                if ("online".equals(service.getStatus())) {
+                    int maxChats = service.getMaxChats() != null ? service.getMaxChats() : 10;
+                    int currentChats = service.getCurrentChats() != null ? service.getCurrentChats() : 0;
+                    if (currentChats < maxChats) {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("id", service.getId());
+                        item.put("nickname", service.getNickname());
+                        item.put("avatar", service.getAvatar());
+                        item.put("availableSlots", maxChats - currentChats);
+                        list.add(item);
+                    }
+                }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * 创建客服账号
+     */
+    public Map<String, Object> createService(String username, String password, String nickname) {
+        Optional<AdminUser> existing = adminUserRepository.findByUsername(username);
+        if (existing.isPresent()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "用户名已存在");
+            return result;
+        }
+
+        AdminUser service = AdminUser.builder()
+            .username(username)
+            .password(Md5Util.encrypt(password))
+            .nickname(nickname != null ? nickname : username)
+            .roles(Arrays.asList("service"))
+            .status("offline")
+            .maxChats(10)
+            .currentChats(0)
+            .enabled(true)
+            .createdAt(System.currentTimeMillis())
+            .build();
+        adminUserRepository.save(service);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("message", "客服账号创建成功");
+        result.put("serviceId", service.getId());
+        return result;
+    }
+
+    /**
+     * 更新客服接待数
+     */
+    public boolean updateServiceChatCount(String serviceId, int delta) {
+        Optional<AdminUser> serviceOpt = adminUserRepository.findById(serviceId);
+        return serviceOpt.map(service -> {
+            int current = service.getCurrentChats() != null ? service.getCurrentChats() : 0;
+            service.setCurrentChats(Math.max(0, current + delta));
+            adminUserRepository.save(service);
+            return true;
+        }).orElse(false);
     }
 
     /**
@@ -809,5 +930,22 @@ public class AdminService {
         result.put("success", true);
         result.put("message", "密码修改成功");
         return result;
+    }
+
+    /**
+     * 重置客服密码
+     */
+    public boolean resetServicePassword(String serviceId) {
+        Optional<AdminUser> opt = adminUserRepository.findById(serviceId);
+        if (!opt.isPresent()) {
+            return false;
+        }
+        AdminUser service = opt.get();
+        if (service.getRoles() == null || !service.getRoles().contains("service")) {
+            return false;
+        }
+        service.setPassword(Md5Util.encrypt(Md5Util.encrypt("123456")));
+        adminUserRepository.save(service);
+        return true;
     }
 }

@@ -4,6 +4,7 @@ import com.chat.common.ErrorCode;
 import com.chat.common.Md5Util;
 import com.chat.document.User;
 import com.chat.repository.UserRepository;
+import com.chat.util.RedisCacheUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,9 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private RedisCacheUtil redisCacheUtil;
+
     /**
      * 获取当前用户信息
      *
@@ -33,21 +37,21 @@ public class UserController {
      */
     @GetMapping("/info")
     public ResponseEntity<Map<String, Object>> getInfo(@RequestAttribute String userId) {
-        return userRepository.findById(userId)
-            .<ResponseEntity<Map<String, Object>>>map(user -> {
-                Map<String, Object> result = new HashMap<>();
-                result.put("userId", user.getId());
-                result.put("username", user.getUsername());
-                result.put("nickname", user.getNickname());
-                result.put("avatar", user.getAvatar());
-                result.put("createdAt", user.getCreatedAt());
-                result.put("lastLoginAt", user.getLastLoginAt());
-                result.put("online", user.getOnline());
-                result.put("extra", user.getExtra());
+        User user = redisCacheUtil.getFullUserById(userId);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", user.getId());
+        result.put("username", user.getUsername());
+        result.put("nickname", user.getNickname());
+        result.put("avatar", user.getAvatar());
+        result.put("createdAt", user.getCreatedAt());
+        result.put("lastLoginAt", user.getLastLoginAt());
+        result.put("online", user.getOnline());
+        result.put("extra", user.getExtra());
 
-                return ResponseEntity.ok(result);
-            })
-            .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -60,18 +64,18 @@ public class UserController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getById(@PathVariable String id) {
-        return userRepository.findById(id)
-            .<ResponseEntity<Map<String, Object>>>map(user -> {
-                Map<String, Object> result = new HashMap<>();
-                result.put("userId", user.getId());
-                result.put("username", user.getUsername());
-                result.put("nickname", user.getNickname());
-                result.put("avatar", user.getAvatar());
-                result.put("online", user.getOnline());
+        User user = redisCacheUtil.getFullUserById(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", user.getId());
+        result.put("username", user.getUsername());
+        result.put("nickname", user.getNickname());
+        result.put("avatar", user.getAvatar());
+        result.put("online", user.getOnline());
 
-                return ResponseEntity.ok(result);
-            })
-            .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -88,28 +92,30 @@ public class UserController {
             @RequestBody Map<String, String> request,
             @RequestAttribute String userId) {
 
-        return userRepository.findById(userId)
-            .<ResponseEntity<Map<String, Object>>>map(user -> {
-                String nickname = request.get("nickname");
-                String avatar = request.get("avatar");
+        User user = redisCacheUtil.getFullUserById(userId);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
 
-                if (nickname != null && !nickname.trim().isEmpty()) {
-                    user.setNickname(nickname.trim());
-                }
-                if (avatar != null) {
-                    user.setAvatar(avatar);
-                }
+        String nickname = request.get("nickname");
+        String avatar = request.get("avatar");
 
-                userRepository.save(user);
+        if (nickname != null && !nickname.trim().isEmpty()) {
+            user.setNickname(nickname.trim());
+        }
+        if (avatar != null) {
+            user.setAvatar(avatar);
+        }
 
-                Map<String, Object> result = new HashMap<>();
-                result.put("userId", user.getId());
-                result.put("nickname", user.getNickname());
-                result.put("avatar", user.getAvatar());
+        userRepository.save(user);
+        redisCacheUtil.invalidateFullUser(userId);
 
-                return ResponseEntity.ok(result);
-            })
-            .orElse(ResponseEntity.notFound().build());
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", user.getId());
+        result.put("nickname", user.getNickname());
+        result.put("avatar", user.getAvatar());
+
+        return ResponseEntity.ok(result);
     }
 
     /**

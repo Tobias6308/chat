@@ -3,6 +3,8 @@ package com.chat.controller.admin;
 import com.chat.document.AdminUser;
 import com.chat.security.AdminJwtUtil;
 import com.chat.service.AdminService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +18,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin")
 public class AdminAuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AdminAuthController.class);
 
     @Autowired
     private AdminService adminService;
@@ -42,6 +46,15 @@ public class AdminAuthController {
         }
 
         String token = adminJwtUtil.generateToken(admin.getId());
+
+        // 验证 token 是否有效
+        String parsedAdminId = adminJwtUtil.parseToken(token);
+        if (parsedAdminId == null) {
+            logger.error("Token validation FAILED after generation! adminId: {}, token length: {}", admin.getId(), token.length());
+        } else {
+            logger.info("Token validation SUCCESS - generated for: {}, parsed back: {}, token: {}", 
+                admin.getId(), parsedAdminId, token.substring(0, Math.min(50, token.length())) + "...");
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("adminId", admin.getId());
@@ -70,13 +83,7 @@ public class AdminAuthController {
      * GET /api/admin/profile
      */
     @GetMapping("/profile")
-    public ResponseEntity<Map<String, Object>> getProfile(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        String token = authHeader != null && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
-        String adminId = adminJwtUtil.parseToken(token);
-        if (adminId == null) {
-            return error("UNAUTHORIZED", "未登录");
-        }
-
+    public ResponseEntity<Map<String, Object>> getProfile(@RequestAttribute String adminId) {
         Map<String, Object> result = adminService.getAdminProfile(adminId);
         return ResponseEntity.ok(result);
     }
@@ -87,13 +94,8 @@ public class AdminAuthController {
      */
     @PutMapping("/profile")
     public ResponseEntity<Map<String, Object>> updateProfile(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestAttribute String adminId,
             @RequestBody Map<String, String> request) {
-        String token = authHeader != null && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
-        String adminId = adminJwtUtil.parseToken(token);
-        if (adminId == null) {
-            return error("UNAUTHORIZED", "未登录");
-        }
 
         String nickname = request.get("nickname");
         Map<String, Object> result = adminService.updateAdminProfile(adminId, nickname);
@@ -106,13 +108,8 @@ public class AdminAuthController {
      */
     @PutMapping("/password")
     public ResponseEntity<Map<String, Object>> updatePassword(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestAttribute String adminId,
             @RequestBody Map<String, String> request) {
-        String token = authHeader != null && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
-        String adminId = adminJwtUtil.parseToken(token);
-        if (adminId == null) {
-            return error("UNAUTHORIZED", "未登录");
-        }
 
         String oldPassword = request.get("oldPassword");
         String newPassword = request.get("newPassword");

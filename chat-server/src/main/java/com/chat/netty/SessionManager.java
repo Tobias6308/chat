@@ -186,6 +186,20 @@ public class SessionManager {
         Channel channel = channels.get(channelId);
         return channel != null && channel.isActive();
     }
+
+    /**
+     * 根据用户ID获取Channel
+     * 
+     * @param userId 用户 ID
+     * @return Channel
+     */
+    public Channel getChannelByUserId(String userId) {
+        String channelId = userChannelMap.get(userId);
+        if (channelId == null) {
+            return null;
+        }
+        return channels.get(channelId);
+    }
     
     /**
      * 获取在线用户数量

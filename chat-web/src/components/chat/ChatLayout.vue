@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useFriendStore } from '@/stores/friend';
 import { useGroupStore } from '@/stores/group';
 import { useConversationStore } from '@/stores/conversation';
 import { useMessageStore } from '@/stores/message';
-import { userApi, chatApi, uploadApi } from '@/utils/api';
+import { userApi, chatApi } from '@/utils/api';
 import VirtualMessageList from './VirtualMessageList.vue';
 import ChatInput from './ChatInput.vue';
 
 const router = useRouter();
+const route = useRoute();
 const friendStore = useFriendStore();
 const groupStore = useGroupStore();
 
@@ -23,7 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: 'selectConversation', conversationId: string): void;
-  (e: 'sendMessage', content: string, conversationId: string): void;
+  (e: 'sendMessage', content: string, conversationId: string, contentType: string): void;
   (e: 'retryMessage', messageId: string): void;
   (e: 'loadMore', conversationId: string): void;
   (e: 'clickUser', userId: string): void;
@@ -45,15 +46,8 @@ const selectedUserInfo = ref<{
   username: string;
 } | null>(null);
 
-// 用户信息 - 懒加载，60秒缓存
-let lastUserInfoTime = 0;
-const USER_INFO_CACHE_MS = 60000;
-
+// 用户信息 - 每次进入页面都刷新
 async function ensureUserInfo(): Promise<void> {
-  const now = Date.now();
-  if (now - lastUserInfoTime < USER_INFO_CACHE_MS) {
-    return;
-  }
   try {
     const info = await userApi.getInfo();
     userInfo.value = {
@@ -62,7 +56,6 @@ async function ensureUserInfo(): Promise<void> {
       username: info.username,
       avatar: info.avatar
     };
-    lastUserInfoTime = now;
   } catch (e) {
     console.error('Failed to load user info:', e);
   }
@@ -83,6 +76,11 @@ onMounted(async () => {
     conversationStore.loadFromApi();
     conversationListLoaded = true;
   }
+});
+
+// 路由变化时刷新用户信息
+watch(() => route.fullPath, () => {
+  ensureUserInfo();
 });
 
 // UI 状态

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   ChatDotRound,
@@ -10,11 +10,30 @@ import {
   Files,
   Message,
   DArrowLeft,
-  DArrowRight
+  DArrowRight,
+  Service,
+  Clock
 } from '@element-plus/icons-vue'
+import { configApi, setFileServerUrl } from '@/utils/api'
 
 const router = useRouter()
 const route = useRoute()
+
+async function loadConfig() {
+  try {
+    const result: any = await configApi.getConfig()
+    if (result.success && result.data?.fileServerUrl) {
+      setFileServerUrl(result.data.fileServerUrl)
+      console.log('[App] 文件服务器地址:', result.data.fileServerUrl)
+    }
+  } catch (error) {
+    console.error('[App] 加载配置失败:', error)
+  }
+}
+
+onMounted(() => {
+  loadConfig()
+})
 
 const isCollapse = ref(false)
 
@@ -104,6 +123,24 @@ function handleLogout() {
         <el-menu-item index="/messages">
           <el-icon><Message /></el-icon>
           <span>消息管理</span>
+        </el-menu-item>
+
+        <div class="menu-title">客服管理</div>
+        <el-menu-item index="/service">
+          <el-icon><Service /></el-icon>
+          <span>客服工作台</span>
+        </el-menu-item>
+        <el-menu-item index="/service-accounts">
+          <el-icon><UserFilled /></el-icon>
+          <span>客服账号管理</span>
+        </el-menu-item>
+        <el-menu-item index="/service-stats">
+          <el-icon><DataAnalysis /></el-icon>
+          <span>客服统计</span>
+        </el-menu-item>
+        <el-menu-item index="/service-history">
+          <el-icon><Clock /></el-icon>
+          <span>会话历史</span>
         </el-menu-item>
       </el-menu>
     </el-aside>

@@ -11,7 +11,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: true
+    host: true,
+    proxy: {
+      '/uploads': {
+        target: 'http://localhost:8082',
+        changeOrigin: true
+      }
+    }
   },
   build: {
     target: 'es2020',

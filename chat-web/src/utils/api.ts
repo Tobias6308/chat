@@ -2,6 +2,10 @@ import { encryptMD5 as md5 } from './md5';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8082/api';
 
+// Simple cache for GET requests
+const requestCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5000; // 5 seconds
+
 function getToken(): string {
   return sessionStorage.getItem('chat_token') || '';
 }
@@ -12,18 +16,40 @@ function encryptPassword(password: string): string {
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit & { useCache?: boolean; cacheTtl?: number; timeout?: number } = {}
 ): Promise<T> {
+  const { useCache: cache = false, cacheTtl = CACHE_TTL, timeout = 15000, ...fetchOptions } = options;
   const url = `${API_BASE}${endpoint}`;
   
+  // Check cache for GET requests
+  if (cache && fetchOptions.method === undefined) {
+    const cached = requestCache.get(url);
+    if (cached && Date.now() - cached.timestamp < cacheTtl) {
+      return cached.data as T;
+    }
+  }
+
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
   const response = await fetch(url, {
-    ...options,
+    ...fetchOptions,
+    signal: controller.signal,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${getToken()}`,
-      ...options.headers,
+      ...fetchOptions.headers,
     },
+  }).catch((err) => {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('请求超时');
+    }
+    throw err;
   });
+
+  clearTimeout(timeoutId);
   
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: '请求失败' }));
@@ -36,7 +62,27 @@ async function request<T>(
     throw new Error(error.message || `HTTP ${response.status}`);
   }
   
-  return response.json();
+  const data = await response.json();
+  
+  // Cache successful GET responses
+  if (cache) {
+    requestCache.set(url, { data, timestamp: Date.now() });
+  }
+  
+  return data;
+}
+
+// Clear cache for specific endpoint
+export function clearCache(endpoint?: string): void {
+  if (endpoint) {
+    requestCache.forEach((_, key) => {
+      if (key.includes(endpoint)) {
+        requestCache.delete(key);
+      }
+    });
+  } else {
+    requestCache.clear();
+  }
 }
 
 export const authApi = {
@@ -298,4 +344,119 @@ export const uploadApi = {
   uploadAudio: (file: File) => uploadApi.upload(file),
   uploadVideo: (file: File) => uploadApi.upload(file),
   uploadFile: (file: File) => uploadApi.upload(file),
+};
+
+// ============================================
+// 客服 API
+// ============================================
+
+export const serviceApi = {
+  // 获取客服状态 (带缓存)
+  getStatus: () => request<{
+    hasAvailableService: boolean;
+    onlineCount: number;
+    waitingCount: number;
+    availableServices: Array<{ id: string; nickname: string; avatar: string; availableSlots: number }>;
+  }>('/chat/service/status', { useCache: true, cacheTtl: 10000 }),
+
+  // 获取客服列表
+  getServiceList: () => request<{
+    services: Array<{ id: string; nickname: string; avatar: string; status: string; maxChats: number; currentChats: number }>;
+  }>('/chat/service/list'),
+
+  // 加入等待队列
+  joinQueue: (userName?: string, userAvatar?: string) =>
+    request<{ success: boolean; message?: string; status?: string; position?: number; estimatedWait?: string }>(
+      '/chat/service/join',
+      { method: 'POST', body: JSON.stringify({ userName, userAvatar }), useCache: false }
+    ),
+
+  // 离开队列
+  leaveQueue: () => request<{ success: boolean }>('/chat/service/leave', { method: 'POST', useCache: false }),
+
+  // 获取排队状态
+  getQueueStatus: () => request<{
+    status: 'offline' | 'waiting' | 'chatting';
+    position?: number;
+    queueSize?: number;
+    estimatedWait?: string;
+    sessionId?: string;
+    serviceId?: string;
+    serviceName?: string;
+  }>('/chat/service/queue'),
+
+  // 获取会话消息
+  getConversation: (limit = 50, skip = 0) => request<{
+    status: string;
+    messages: Array<{
+      id: string;
+      senderId: string;
+      content: string;
+      contentType: string;
+      status: string;
+      createdAt: number;
+    }>;
+  }>(`/chat/service/conversation?limit=${limit}&skip=${skip}`),
+
+  // 发送消息
+  sendMessage: (content: string, contentType = 'text') =>
+    request<{ success: boolean; message: any }>(
+      '/chat/service/message',
+      { method: 'POST', body: JSON.stringify({ content, contentType }) }
+    ),
+
+  // 结束会话
+  endSession: () => request<{ success: boolean }>('/chat/service/end', { method: 'POST' }),
+
+  // 评价会话
+  rateSession: (rating: number, comment?: string) =>
+    request<{ success: boolean }>(
+      '/chat/service/rate',
+      { method: 'POST', body: JSON.stringify({ rating, comment }) }
+    ),
+
+  // 获取历史会话列表
+  getHistory: (limit = 20, skip = 0) =>
+    request<{
+      sessions: Array<{
+        id: string;
+        userId: string;
+        userName: string;
+        serviceId: string;
+        serviceName: string;
+        status: string;
+        createdAt: number;
+        chatStartAt?: number;
+        rating?: number;
+      }>;
+    }>(`/chat/service/history?limit=${limit}&skip=${skip}`),
+
+  // 获取历史会话消息
+  getHistoryMessages: (sessionId: string, limit = 50, skip = 0) =>
+    request<{
+      success: boolean;
+      session: {
+        id: string;
+        serviceId: string;
+        serviceName: string;
+        status: string;
+        createdAt: number;
+      };
+      messages: Array<{
+        id: string;
+        senderId: string;
+        content: string;
+        contentType: string;
+        status: string;
+        createdAt: number;
+      }>;
+    }>(`/chat/service/history/${sessionId}/messages?limit=${limit}&skip=${skip}`),
+
+  // 标记已读
+  markRead: () =>
+    request<{ success: boolean }>('/chat/service/read', { method: 'POST' }),
+
+  // 重置会话状态
+  resetSession: () =>
+    request<{ success: boolean }>('/chat/service/reset', { method: 'POST' }),
 };

@@ -6,10 +6,11 @@ import com.chat.document.Message;
 import com.chat.document.User;
 import com.chat.dto.*;
 import com.chat.repository.ConversationRepository;
-import com.chat.repository.UserRepository;
 import com.chat.service.ConversationService;
 import com.chat.service.MessageService;
 import com.chat.service.RedisUnreadService;
+import com.chat.util.RedisCacheUtil;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,13 +39,13 @@ public class MessageHandler {
     
     @Autowired
     private ConversationRepository conversationRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-    
+
     @Autowired
     private RedisUnreadService redisUnreadService;
-    
+
+    @Autowired
+    private RedisCacheUtil redisCacheUtil;
+
     /**
      * Ensure conversation exists
      */
@@ -79,13 +80,16 @@ public class MessageHandler {
             // 生成消息 ID (使用 nanoid 格式)
             String messageId = generateId();
             
-            // 获取会话类型
+// 获取会话类型
             Optional<Conversation> convOpt = conversationRepository.findById(conversationId);
             String conversationType = convOpt.map(Conversation::getType).orElse("private");
-            
+
+            // 使用客户端发送的消息ID，确保前后端一致
+            String finalMessageId = payload.getId() != null ? payload.getId() : messageId;
+
             // 构建消息并保存到 MongoDB
             Message message = Message.builder()
-                .id(messageId)
+                .id(finalMessageId)
                 .conversationId(conversationId)
                 .conversationType(conversationType)
                 .senderId(senderId)
@@ -105,9 +109,9 @@ public class MessageHandler {
             ServerPayload ackResponse = new ServerPayload();
             ackResponse.setType("ack_ok");
             ackResponse.setId(payload.getId());
-            
+
             Map<String, Object> ackPayload = new HashMap<>();
-            ackPayload.put("messageId", messageId);
+            ackPayload.put("messageId", finalMessageId);
             ackPayload.put("status", "sent");
             ackPayload.put("timestamp", System.currentTimeMillis());
             
@@ -115,14 +119,14 @@ public class MessageHandler {
             ackResponse.setTimestamp(System.currentTimeMillis());
             
             ctx.writeAndFlush(ackResponse);
-            
+
             // 获取发送者信息
-            Optional<User> senderOpt = userRepository.findById(senderId);
+            User sender = redisCacheUtil.getFullUserById(senderId);
             String senderNickname = "用户";
             String senderAvatar = null;
-            if (senderOpt.isPresent()) {
-                senderNickname = senderOpt.get().getNickname();
-                senderAvatar = senderOpt.get().getAvatar();
+            if (sender != null) {
+                senderNickname = sender.getNickname();
+                senderAvatar = sender.getAvatar();
             }
             
             // 广播消息给会话中的其他用户
@@ -140,7 +144,7 @@ public class MessageHandler {
             
             broadcastToConversation(conversationId, senderId, messageData);
             
-            logger.info("Message sent: conversationId={}, messageId={}", conversationId, messageId);
+            logger.info("Message sent: conversationId={}, messageId={}", conversationId, finalMessageId);
             
         } catch (Exception e) {
             logger.error("Failed to handle send message: {}", e.getMessage(), e);
@@ -162,7 +166,47 @@ public class MessageHandler {
             
             logger.debug("ACK received: messageId={}, status={}", messageId, status);
             
-            // TODO: 更新消息状态
+            if (messageId == null || status == null) {
+                logger.warn("ACK missing messageId or status");
+                return;
+            }
+
+            if (!"delivered".equals(status) && !"read".equals(status)) {
+                logger.warn("Invalid ACK status: {}", status);
+                return;
+            }
+
+            Optional<Message> msgOpt = messageService.getById(messageId);
+            if (!msgOpt.isPresent()) {
+                logger.warn("ACK message not found: {}", messageId);
+                return;
+            }
+
+            Message message = msgOpt.get();
+            String senderId = message.getSenderId();
+
+            messageService.updateStatus(messageId, status);
+            logger.info("Message status updated: messageId={}, status={}", messageId, status);
+
+            if ("read".equals(status)) {
+                String conversationId = message.getConversationId();
+                redisUnreadService.setUserReadTime(ctx.channel().id().asShortText(), conversationId, System.currentTimeMillis());
+            }
+
+            if (senderId != null) {
+                Channel senderChannel = sessionManager.getChannelByUserId(senderId);
+                if (senderChannel != null && senderChannel.isActive()) {
+                    ServerPayload pushPayload = new ServerPayload();
+                    pushPayload.setType("message_status_updated");
+                    Map<String, Object> pushData = new HashMap<>();
+                    pushData.put("messageId", messageId);
+                    pushData.put("status", status);
+                    pushPayload.setPayload(pushData);
+                    pushPayload.setTimestamp(System.currentTimeMillis());
+                    senderChannel.writeAndFlush(pushPayload);
+                    logger.debug("Pushed status to sender: messageId={}, status={}, senderId={}", messageId, status, senderId);
+                }
+            }
             
         } catch (Exception e) {
             logger.error("Failed to handle ack: {}", e.getMessage(), e);

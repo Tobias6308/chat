@@ -113,7 +113,11 @@ export type ServerPayloadType =
   | 'message'
   | 'ack_ok'
   | 'history'
-  | 'error';
+  | 'error'
+  | 'service_session_started'
+  | 'service_session_ended'
+  | 'service_new_message'
+  | 'service_typing';
 
 /**
  * Base server response structure
@@ -517,6 +521,7 @@ export interface Group {
   unreadCount: number;
   isMuted: boolean;
   conversationId?: string;
+  hasNewMessages?: boolean;
 }
 
 /**
